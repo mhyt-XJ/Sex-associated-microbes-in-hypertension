@@ -1,4 +1,4 @@
-# Modified Mediation Analysis Script with 95% Confidence Intervals
+# Modified Mediation Analysis Script with 95% Confidence Intervals and Covariates (BMI, Age)
 
 # Load required packages
 if (!require("tidyverse")) install.packages("tidyverse")
@@ -15,9 +15,10 @@ data <- read.table("123.txt", header = TRUE, sep = "\t", stringsAsFactors = FALS
 colnames(data) <- make.names(colnames(data))
 
 # Define variable positions
-outcome_cols <- 4  # Columns 4-5 are outcomes
-cause_col <- 6      # Column 6 is the independent variable
-feature_cols <- 53   # Columns 7+ are features/mediators
+outcome_cols <- SBP  # Columns 3-4 are outcomes
+cause_col <- s__Faecalibacterium_prausnitzii	      # Column 6 is the independent variable
+feature_cols <- x   # Columns 7+ are features/mediators
+covariate_cols <- c("BMI", "Age")  # Covariate column names
 
 # Create empty dataframe to store results with CI columns
 results <- data.frame(
@@ -65,11 +66,13 @@ for (outcome_col in outcome_cols) {
   for (feature_col in feature_cols) {
     feature_name <- colnames(data)[feature_col]
     
-    # Prepare data
+    # Prepare data with covariates
     df <- data.frame(
       Y = data[, outcome_col],
       X = data[, cause_col],
-      M = data[, feature_col]
+      M = data[, feature_col],
+      BMI = data[, "BMI"],      # Add BMI covariate
+      Age = data[, "Age"]       # Add Age covariate
     ) %>% na.omit()  # Remove missing values
     
     # Skip if insufficient data
@@ -79,12 +82,12 @@ for (outcome_col in outcome_cols) {
     }
     
     tryCatch({
-      # Build models
-      # Step 1: Effect of independent variable on mediator
-      model_m <- lm(M ~ X, data = df)
+      # Build models with covariates
+      # Step 1: Effect of independent variable on mediator, adjusted for BMI and Age
+      model_m <- lm(M ~ X + BMI + Age, data = df)
       
-      # Step 2: Effect of independent variable and mediator on outcome
-      model_y <- lm(Y ~ X + M, data = df)
+      # Step 2: Effect of independent variable and mediator on outcome, adjusted for BMI and Age
+      model_y <- lm(Y ~ X + M + BMI + Age, data = df)
       
       # Perform mediation analysis with increased bootstrap samples
       med <- mediate(model_m, model_y, 
@@ -147,10 +150,10 @@ if (nrow(significant_results) > 0) {
 }
 
 # Save results
-write.csv(results, "mediation_results_all_with_CI.csv", row.names = FALSE)
+write.csv(results, "mediation_results_all_with_CI_and_covariates.csv", row.names = FALSE)
 
 if (nrow(significant_results) > 0) {
-  write.csv(significant_results, "mediation_results_significant_with_CI.csv", row.names = FALSE)
+  write.csv(significant_results, "mediation_results_significant_with_CI_and_covariates.csv", row.names = FALSE)
 }
 
 # Generate summary statistics
